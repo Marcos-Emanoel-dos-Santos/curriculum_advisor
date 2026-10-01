@@ -1,3 +1,6 @@
+% Declaração de modulo
+:- module(curriculum, [disciplina/4, prerequisito/2, cursou/2]).
+
 disciplina(fundamentos_de_sistemas_ciberfisicos, obrigatoria, 4, 1).
 disciplina(resolucao_de_problemas_com_logica_matematica, obrigatoria, 4, 1).
 disciplina(filosofia, obrigatoria, 4, 1).
