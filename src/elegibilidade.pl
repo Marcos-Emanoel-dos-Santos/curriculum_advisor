@@ -1,3 +1,7 @@
+% Declaraçao de modulo
+:- module(elegibilidade, [pode_cursar/2, disciplinas_liberadas/2, disciplinas_pendentes/2, creditos_cursados/2]).
+:- use_module(curriculum).
+
 % forall(Condicao, Acao) verifica se para toda Condicao encontrada, a Acao também é verdadeira.
 % Se disciplina não tiver nenhum pré-requisito registrado, o forall é verdadeiro automaticamente (verdade por vacuidade).
 prerequisitos_ok(Aluno, Disciplina) :-
