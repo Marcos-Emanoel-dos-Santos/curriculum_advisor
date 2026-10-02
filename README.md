@@ -1,6 +1,7 @@
 # Curriculum Advisor
 
-Sistema desenvolvido em Prolog para representar a grade curricular de um curso universitário.
+Sistema desenvolvido em Prolog para representar a grade curricular de um curso universitário.<br>
+Estudantes: Alisson Ayres Pereira Martins Silva, Bruna Neves Sbardeloto, Marcos Emanoel dos Santos, Pedro Ferraira Carneiro Maraski
 
 ## Pré-requisitos
 Para executar o projeto, é necessário ter o interpretador [SWI-Prolog](https://www.swi-prolog.org/) instalado na sua máquina.
