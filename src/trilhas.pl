@@ -1,83 +1,104 @@
 :- module(trilhas, [
-    depende_de/2,
-    cadeia_dependencia/3,
-    materia_libera/2,
-    disciplinas_liberadas_futuras/2,
-    trilha_para_disciplina/3,
-    proximo_semestre_sugerido/3
+    prerequisito_transitivo/2,
+    existe_ciclo/1,
+    trilha_valida/3
 ]).
 
-% Importa a camada 1 e 2 caso executado isoladamente
+% Importa a camada 1 e 2
 :- use_module(curriculum).
 :- use_module(elegibilidade).
 
-% depende_de(D1, D2): D1 depende (direta ou indiretamente) de D2.
-% Caso Base: D1 tem D2 como pré-requisito direto.
-depende_de(D1, D2) :-
+% ----------------------------------------------------------------------
+% FECHO TRANSITIVO E CICLOS
+% ----------------------------------------------------------------------
+
+% prerequisito_transitivo(D1, D2): D1 depende (direta ou indiretamente) de D2.
+prerequisito_transitivo(D1, D2) :-
     prerequisito(D1, D2).
 
-depende_de(D1, D2) :-
+prerequisito_transitivo(D1, D2) :-
     prerequisito(D1, X),
-    depende_de(X, D2).
+    prerequisito_transitivo(X, D2).
 
-% materia_libera(D1, D2): O inverso de depende_de/2.
-% D1 é pré-requisito (direto ou indireto) de D2.
-materia_libera(D1, D2) :-
-    depende_de(D2, D1).
+% existe_ciclo(Disciplina): verdadeiro se uma disciplina é pré-requisito dela mesma
+existe_ciclo(Disciplina) :- 
+    prerequisito_transitivo(Disciplina, Disciplina).
 
-% cadeia_dependencia(Origem, Destino, Caminho)
-% Retorna a lista ORDENADA de disciplinas no caminho de dependência.
-cadeia_dependencia(Origem, Destino, Caminho) :-
-    caminho_rec(Origem, Destino, [Origem], CaminhoInvertido),
-    reverse(CaminhoInvertido, Caminho).
 
-caminho_rec(Origem, Destino, Visitados, [Destino|Visitados]) :-
-    prerequisito(Destino, Origem).
+% ----------------------------------------------------------------------
+% GERAÇÃO DE TRILHAS
+% ----------------------------------------------------------------------
 
-caminho_rec(Origem, Destino, Visitados, Caminho) :-
-    prerequisito(X, Origem),
-    \+ member(X, Visitados),
-    caminho_rec(X, Destino, [X|Visitados], Caminho).
+% Resgata o histórico atual do aluno e define o limite de 12 semestres.
+trilha_valida(Aluno, MaxCreditos, TrilhaFinal) :-
+    findall(D, cursou(Aluno, D), HistoricoInicial),
+    simula_semestres(HistoricoInicial, MaxCreditos, 12, [], TrilhaInvertida),
+    reverse(TrilhaInvertida, TrilhaFinal).
 
-% disciplinas_liberadas_futuras(Disciplina, ListaFuturas)
-% Identifica todas as disciplinas do curso que seriam destravadas (direta ou
-% indiretamente) após concluir 'Disciplina'.
-disciplinas_liberadas_futuras(Disciplina, ListaFuturas) :-
-    findall(D, materia_libera(Disciplina, D), ListaBruta),
-    sort(ListaBruta, ListaFuturas).
 
-% trilha_para_disciplina(Aluno, Alvo, Trilha)
-% Gera uma sequência (passos/semestres) de disciplinas que o aluno precisa cursar
-% até conseguir liberar e cursar a disciplina Alvo.
-trilha_para_disciplina(Aluno, Alvo, Trilha) :-
-    \+ cursou(Aluno, Alvo),
-    resolve_trilha(Aluno, Alvo, [], Trilha).
 
-% Caso Base: Se a disciplina já pode ser cursada agora, a trilha é só ela.
-resolve_trilha(Aluno, Alvo, _, [Alvo]) :-
-    pode_cursar(Aluno, Alvo).
+% --- REGRAS DE SIMULAÇÃO  ---
 
-% Caso Recursivo: Se faltam pré-requisitos, descobre qual precisa fazer primeiro.
-resolve_trilha(Aluno, Alvo, Visitados, [Prox | RestoTrilha]) :-
-    \+ pode_cursar(Aluno, Alvo),
-    prerequisito(Alvo, Pre),
-    \+ cursou(Aluno, Pre),
-    \+ member(Pre, Visitados),
-    resolve_trilha(Aluno, Pre, [Pre|Visitados], SubTrilha),
-    last(SubTrilha, Prox),
-    resolve_trilha(Aluno, Alvo, [Prox|Visitados], RestoTrilha).
+% Casos base
+% O aluno terminou o curso (não tem mais obrigatórias pendentes).
+simula_semestres(HistoricoAtual, _, _, TrilhaAcumulada, TrilhaAcumulada) :-
+    todas_obrigatorias_cumpridas(HistoricoAtual).
 
-% proximo_semestre_sugerido(Aluno, MaxCreditos, DisciplinasSugeridas)
-% Seleciona um subconjunto de disciplinas liberadas sem ultrapassar MaxCreditos.
-proximo_semestre_sugerido(Aluno, MaxCreditos, DisciplinasSugeridas) :-
-    disciplinas_liberadas(Aluno, Liberadas),
-    seleciona_disciplinas(Liberadas, MaxCreditos, 0, [], DisciplinasSugeridas).
+% O limite de semestres chegou a 0 e ele não formou.
+simula_semestres(HistoricoAtual, _, 0, _, _) :-
+    \+ todas_obrigatorias_cumpridas(HistoricoAtual),
+    !, fail. % Corta a busca para evitar loop infinito/explosão combinatória
 
-seleciona_disciplinas([], _, _, Acc, Acc).
-seleciona_disciplinas([D|Resto], MaxCreditos, CreditosAtuais, Acc, Resultado) :-
+% Caso recursivo
+% Monta UM semestre e avança para o próximo.
+simula_semestres(HistoricoAtual, MaxCreditos, SemestresRestantes, TrilhaAcumulada, TrilhaFinal) :-
+    SemestresRestantes > 0,
+    
+    % Descobre o que pode cursar baseado apenas no histórico simulado
+    liberadas_simulacao(HistoricoAtual, Liberadas),
+    
+    % Escolhe uma combinação válida de matérias que respeite os créditos
+    escolhe_disciplinas(Liberadas, MaxCreditos, SemestreEscolhido),
+    
+    % Atualiza o histórico simulado com as matérias escolhidas neste semestre
+    append(HistoricoAtual, SemestreEscolhido, NovoHistorico),
+    
+    % 4. Diminui o contador e vai para o próximo semestre
+    NovosRestantes is SemestresRestantes - 1,
+    simula_semestres(NovoHistorico, MaxCreditos, NovosRestantes, [SemestreEscolhido|TrilhaAcumulada], TrilhaFinal).
+
+
+
+% --- PREDICADOS AUXILIARES PARA A SIMULAÇÃO ---
+
+% Verifica se não existe nenhuma disciplina obrigatória que não esteja no histórico
+todas_obrigatorias_cumpridas(Historico) :-
+    \+ (disciplina(D, obrigatoria, _, _), \+ member(D, Historico)).
+
+% Descobre o que está liberado usando a lista em memória
+liberadas_simulacao(Historico, Liberadas) :-
+    setof(D, pode_cursar_simulado(D, Historico), Liberadas), !.
+liberadas_simulacao(_, []).
+
+pode_cursar_simulado(D, Historico) :-
+    disciplina(D, _, _, _),
+    \+ member(D, Historico),
+    forall(prerequisito(D, Pre), member(Pre, Historico)).
+
+% Gera combinações de disciplinas que não ultrapassam o limite de créditos do semestre
+% (Usa backtracking para gerar várias opções de semestres diferentes)
+escolhe_disciplinas(Disponiveis, MaxCreditos, Escolhidas) :-
+    subconjunto_valido(Disponiveis, MaxCreditos, _, Escolhidas),
+    Escolhidas \= []. % Garante que o aluno pegue pelo menos uma matéria (não perca o semestre)
+
+% Monta subconjuntos somando créditos
+subconjunto_valido([], _, 0, []).
+subconjunto_valido([D|Resto], MaxCreditos, TotalCreditos, [D|Escolhidas]) :-
     disciplina(D, _, CreditosD, _),
-    NovoTotal is CreditosAtuais + CreditosD,
-    NovoTotal =< MaxCreditos,
-    seleciona_disciplinas(Resto, MaxCreditos, NovoTotal, [D|Acc], Resultado).
-seleciona_disciplinas([_|Resto], MaxCreditos, CreditosAtuais, Acc, Resultado) :-
-    seleciona_disciplinas(Resto, MaxCreditos, CreditosAtuais, Acc, Resultado).
+    MaxRestante is MaxCreditos - CreditosD,
+    MaxRestante >= 0,
+    subconjunto_valido(Resto, MaxRestante, TotalResto, Escolhidas),
+    TotalCreditos is CreditosD + TotalResto.
+subconjunto_valido([_|Resto], MaxCreditos, TotalCreditos, Escolhidas) :-
+    subconjunto_valido(Resto, MaxCreditos, TotalCreditos, Escolhidas).
+

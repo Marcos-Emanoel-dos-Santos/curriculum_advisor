@@ -1,6 +1,7 @@
-% Declaraçao de modulo
 :- module(elegibilidade, [pode_cursar/2, disciplinas_liberadas/2, disciplinas_pendentes/2, creditos_cursados/2]).
 :- use_module(curriculum).
+
+
 
 % forall(Condicao, Acao) verifica se para toda Condicao encontrada, a Acao também é verdadeira.
 % Se disciplina não tiver nenhum pré-requisito registrado, o forall é verdadeiro automaticamente (verdade por vacuidade).
@@ -15,16 +16,16 @@ pode_cursar(Aluno, Disciplina) :-
 
 
 % Encontra todas as disciplinas que o aluno pode_cursar e joga na Lista.
-% setof/3 remove automaticamente duplicatas da lista.
-% fallback evita que a regra falhe caso o aluno não tenha disciplinas liberadas
+% setof/3 remove duplicatas da lista.
+% fallback evita falhas caso o aluno não tenha disciplinas liberadas
 disciplinas_liberadas(Aluno, Lista) :-
-    setof(D, pode_cursar(Aluno, D), Lista)
+    setof(Disc, pode_cursar(Aluno, Disc), Lista)
     ; Lista = [].
 
 
 % Agrupa todas as disciplinas que sao obrigatorias e que o aluno ainda não fez
 disciplinas_pendentes(Aluno, Lista) :-
-    findall(Disc, disciplina(Disc, obrigatoria, _, _), \+ cursou(Aluno, Disc), Lista).
+    findall(Disc, (disciplina(Disc, obrigatoria, _, _), \+ cursou(Aluno, Disc)), Lista).
 
 
 % Descobre quais disciplinas o aluno fez, pega o número de créditos de cada uma, 

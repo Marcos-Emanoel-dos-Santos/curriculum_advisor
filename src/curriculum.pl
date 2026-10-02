@@ -1,6 +1,11 @@
 % Declaração de modulo
 :- module(curriculum, [disciplina/4, prerequisito/2, cursou/2]).
 
+% SE TIRAR NÃO TEM COMO USAR assertz.
+:- dynamic cursou/2.
+:- dynamic prerequisito/2.
+
+
 disciplina(fundamentos_de_sistemas_ciberfisicos, obrigatoria, 4, 1).
 disciplina(resolucao_de_problemas_com_logica_matematica, obrigatoria, 4, 1).
 disciplina(filosofia, obrigatoria, 4, 1).
@@ -100,6 +105,9 @@ prerequisito(blockchain_e_criptografia, seguranca_da_informacao).
 prerequisito(topicos_avancados_em_ia, inteligencia_artificial).
 
 
+% Marcos e Bruna são adiantados
+% Alisson e Pedro estão em ritmo normal
+% Akira e João estão atrasados
 cursou(marcos, fundamentos_de_sistemas_ciberfisicos).
 cursou(marcos, resolucao_de_problemas_com_logica_matematica).
 cursou(marcos, raciocinio_algoritmico).
